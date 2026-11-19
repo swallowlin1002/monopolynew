@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>古典樂派與歌劇大富翁總複習</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(234, 179, 8, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(234, 179, 8, 0); }
+    }
+    .active-team-glow {
+      animation: pulse-ring 2s infinite cubic-bezier(0.45, 0, 0.55, 1);
+    }
+    .perspective-dice {
+      perspective: 600px;
+    }
+    .dice-cube {
+      transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+      transform-style: preserve-3d;
+    }
+    body {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+      touch-action: manipulation;
+    }
+    @media (max-width: 640px) {
+      .setup-card-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans select-none overflow-x-hidden">
+
+  <!-- 頂部資訊列 -->
+  <header class="bg-slate-800/90 border-b border-amber-500/30 px-4 py-3 flex items-center justify-between shadow-md">
+    <div class="flex items-center gap-3">
+      <span class="text-3xl">🎼</span>
+      <div>
+        <h1 class="text-lg md:text-xl font-bold tracking-wider text-amber-300">古典樂派與歌劇 · 課堂大富翁總複習</h1>
+        <p class="text-xs text-slate-400">國中音樂 2 上 第 5 課《琴聲悠揚》 × 第 6 課《歌劇停看聽》</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="btn-sound-toggle" type="button" onclick="toggleMute()" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs text-slate-200 border border-slate-600 flex items-center gap-1.5 transition cursor-pointer">
+        <span id="sound-icon">🔊</span> <span id="sound-text">音效開</span>
+      </button>
+      <button type="button" onclick="openResetModal()" class="px-3 py-1.5 rounded-lg bg-red-900/60 hover:bg-red-800 text-xs text-red-200 border border-red-700 transition cursor-pointer">
+        🔄 重新開局
+      </button>
+    </div>
+  </header>
+
+  <!-- 主要遊玩區 -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-2 md:p-4 grid grid-cols-1 lg:grid-cols-4 gap-3 items-start">
+
+    <!-- 棋盤容器 -->
+    <div class="lg:col-span-3 bg-slate-800/60 border border-slate-700/80 rounded-2xl p-2 md:p-3 shadow-2xl relative">
+      <div id="board-grid" class="grid grid-cols-5 grid-rows-5 gap-1.5 md:gap-2 aspect-square max-h-[76vh] mx-auto w-full">
+        <!-- 16 個格子由 JS 動態生成 -->
+      </div>
+
+      <!-- 棋盤中央控制核心 -->
+      <div class="absolute inset-0 m-auto w-3/5 h-3/5 flex flex-col items-center justify-center p-3 pointer-events-none">
+        <div class="bg-slate-900/95 border-2 border-amber-500/40 rounded-2xl p-3 md:p-4 shadow-2xl flex flex-col items-center text-center max-w-xs w-full pointer-events-auto backdrop-blur-md">
+          <div class="text-xs font-semibold text-amber-400 tracking-widest uppercase mb-1">巡迴輪次</div>
+          <div class="text-sm font-bold text-slate-200 mb-2">
+            第 <span id="current-round-text" class="text-amber-300 text-lg">1</span> / 10 輪
+          </div>
+
+          <!-- 3D 骰子顯示 -->
+          <div class="perspective-dice my-1">
+            <div id="dice-element" class="dice-cube w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-amber-200 to-amber-500 rounded-xl shadow-lg border-2 border-amber-100 flex items-center justify-center text-3xl md:text-4xl font-extrabold text-slate-900 shadow-amber-500/20">
+              ⚀
+            </div>
+          </div>
+
+          <!-- 當前行動提示 -->
+          <div id="turn-announcer" class="text-xs text-slate-300 my-2 font-medium">
+            輪到 <span id="active-team-name" class="font-bold text-red-400">小提琴隊</span> 擲骰！
+          </div>
+
+          <!-- 擲骰按鈕 -->
+          <button id="btn-roll-dice" type="button" onclick="handleRollDice()" class="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 active:scale-95 text-slate-950 font-black rounded-xl text-sm md:text-base shadow-lg shadow-amber-500/25 transition cursor-pointer">
+            🎲 擲 骰 子
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右側：隊伍計分儀表板 -->
+    <div class="lg:col-span-1 flex flex-col gap-2">
+      <div class="bg-slate-800/80 border border-slate-700 rounded-2xl p-3 shadow-lg">
+        <h2 class="text-sm font-bold text-amber-300 mb-2 flex items-center justify-between">
+          <span>👥 小隊排練狀態</span>
+          <span class="text-xs font-normal text-slate-400">總輪次：10 輪</span>
+        </h2>
+        <div id="teams-scoreboard" class="flex flex-col gap-2 max-h-[70vh] overflow-y-auto pr-1">
+          <!-- 隊伍狀態卡片由 JS 動態生成 -->
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 開局分組與小隊報到彈窗 -->
+  <div id="modal-setup" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4 overflow-y-auto" style="display: flex;">
+    <div class="bg-slate-800 border-2 border-amber-500/60 rounded-3xl p-4 md:p-6 max-w-4xl w-full shadow-2xl my-auto max-h-[92vh] overflow-y-auto">
+      <div class="text-center mb-4">
+        <span class="text-4xl block mb-1">🏛️</span>
+        <h2 class="text-xl md:text-2xl font-black text-amber-300 tracking-wider">古典樂派與歌劇總複習 · 小隊報到</h2>
+        <p class="text-xs text-slate-300 mt-1">
+          請選擇班級與隊伍數（5 或 6 小隊），並填寫各小隊組員「座號＋姓名」後開始遊戲
+        </p>
+      </div>
+
+      <!-- 班級與隊伍數設定列 -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 bg-slate-900/70 p-3 rounded-2xl border border-slate-700">
+        <div>
+          <label for="input-class-name" class="block text-xs font-bold text-amber-300 mb-1">🏫 班級（必填）</label>
+          <input id="input-class-name" type="text" list="class-datalist" placeholder="例如：805" class="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-600 focus:border-amber-400 focus:outline-none text-sm text-white font-bold">
+          <datalist id="class-datalist">
+            <option value="801"><option value="802"><option value="803"><option value="804"><option value="805">
+            <option value="806"><option value="807"><option value="808"><option value="809"><option value="810">
+            <option value="811"><option value="812"><option value="813"><option value="814"><option value="815">
+            <option value="816"><option value="817"><option value="818"><option value="819">
+          </datalist>
+        </div>
+
+        <button id="btn-choice-5" type="button" onclick="selectTeamCount(5)" class="py-2.5 px-3 rounded-xl border-2 border-slate-600 bg-slate-700 hover:border-amber-400 active:scale-95 text-xs md:text-sm font-bold text-slate-200 transition flex flex-col items-center justify-center gap-0.5 cursor-pointer">
+          <span>🎻🎹🪈🎺📯</span>
+          <span>5 小隊競賽（每組 5～6 人）</span>
+        </button>
+
+        <button id="btn-choice-6" type="button" onclick="selectTeamCount(6)" class="py-2.5 px-3 rounded-xl border-2 border-amber-500 bg-amber-500/20 active:scale-95 text-xs md:text-sm font-bold text-amber-300 transition flex flex-col items-center justify-center gap-0.5 cursor-pointer">
+          <span>🎻🎹🪈🎺📯🥁</span>
+          <span>6 小隊競賽（標準 · 每組 5～6 人）</span>
+        </button>
+      </div>
+
+      <!-- 各樂器小隊組員輸入區（由 JS 依 5 或 6 隊動態生成） -->
+      <div id="roster-forms-container" class="setup-card-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4"></div>
+
+      <div id="setup-error-msg" class="text-xs text-rose-400 font-bold text-center mb-3 hidden" style="display: none;"></div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
+        <div class="md:col-span-2 text-[11px] text-slate-400 bg-slate-900/60 p-2.5 rounded-xl border border-slate-700/60 leading-relaxed">
+          📌 10 輪結束後將自動回傳各樂器小隊之「<strong>時間、班級、小隊名、組員名單、金幣</strong>」至 Google 試算表；答錯或逾時題目將自動寫入 <strong>H 欄</strong>統計。
+        </div>
+        <button id="btn-start-game-trigger" type="button" onclick="launchGame()" class="w-full py-3.5 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 active:scale-95 text-slate-950 font-black rounded-xl text-base shadow-lg shadow-amber-500/30 transition cursor-pointer">
+          🎵 確認名單並開始
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 題目互動彈窗 -->
+  <div id="modal-quiz" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 items-center justify-center p-4 hidden" style="display: none;">
+    <div class="bg-slate-800 border-2 border-amber-400 rounded-3xl p-5 md:p-6 max-w-lg w-full shadow-2xl relative">
+      <div class="flex items-center justify-between mb-3 border-b border-slate-700 pb-2">
+        <div class="flex items-center gap-2">
+          <span id="quiz-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+            古典知識廳
+          </span>
+          <span id="quiz-team-indicator" class="text-xs text-slate-300 font-semibold"></span>
+        </div>
+        <div class="text-xs font-mono font-bold text-amber-400 bg-slate-900 px-2 py-1 rounded-md border border-slate-700">
+          ⏳ <span id="quiz-timer">30</span> 秒
+        </div>
+      </div>
+
+      <!-- MP3 播放控制區 -->
+      <div id="quiz-audio-section" class="mb-4 p-3 bg-slate-900/90 rounded-2xl border border-amber-500/30 items-center justify-between hidden" style="display: none;">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xl">
+            🎧
+          </div>
+          <div>
+            <div class="text-xs font-bold text-amber-300">課本樂曲聽辨挑戰</div>
+            <div id="audio-status-text" class="text-[11px] text-slate-400">點擊右方按鈕播放樂段</div>
+          </div>
+        </div>
+        <button id="btn-play-audio" type="button" onclick="playCurrentQuestionAudio()" class="py-2 px-4 bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition cursor-pointer">
+          <span id="play-btn-icon">▶️</span> <span id="play-btn-text">播放樂段</span>
+        </button>
+      </div>
+
+      <!-- 題目內文 -->
+      <h3 id="quiz-question-text" class="text-sm md:text-base font-bold text-slate-100 mb-4 leading-relaxed">
+        題目載入中...
+      </h3>
+
+      <!-- 選項列表 -->
+      <div id="quiz-options-container" class="grid grid-cols-1 gap-2.5 mb-4"></div>
+
+      <!-- 解答與解析 -->
+      <div id="quiz-feedback-box" class="p-3 rounded-xl bg-slate-900/80 border text-xs leading-relaxed hidden" style="display: none;">
+        <div id="feedback-result" class="font-bold text-sm mb-1"></div>
+        <p id="feedback-explanation" class="text-slate-300"></p>
+      </div>
+
+      <!-- 關閉 / 下一小隊按鈕 -->
+      <button id="btn-close-quiz" type="button" onclick="closeQuizModal()" class="w-full mt-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-100 font-bold rounded-xl text-xs transition hidden cursor-pointer" style="display: none;">
+        下一小隊輪次 ➔
+      </button>
+    </div>
+  </div>
+
+  <!-- 全域單一 HTML5 音訊播放器 -->
+  <audio id="global-bgm-player" preload="auto" playsinline webkit-playsinline class="hidden"></audio>
+
+  <!-- 機會 / 命運卡片彈窗 -->
+  <div id="modal-event" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 items-center justify-center p-4 hidden" style="display: none;">
+    <div class="bg-slate-800 border-2 border-indigo-500/60 rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center">
+      <div id="event-icon" class="text-5xl mb-2">📰</div>
+      <h3 id="event-title" class="text-lg font-bold text-indigo-300 mb-2">樂壇快訊</h3>
+      <p id="event-desc" class="text-xs text-slate-200 leading-relaxed bg-slate-900/60 p-4 rounded-xl border border-slate-700/80 mb-4">
+        事件說明...
+      </p>
+      <div id="event-reward" class="text-sm font-bold text-amber-300 mb-4">
+        +100 聲望點數
+      </div>
+      <button type="button" onclick="closeEventModal()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition cursor-pointer">
+        確認收下 ➔
+      </button>
+    </div>
+  </div>
+
+  <!-- 重新開局確認彈窗 -->
+  <div id="modal-reset-confirm" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 items-center justify-center p-4 hidden" style="display: none;">
+    <div class="bg-slate-800 border-2 border-rose-500/60 rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center">
+      <div class="text-4xl mb-2">🔄</div>
+      <h3 class="text-lg font-bold text-rose-300 mb-2">確定要重新開局嗎？</h3>
+      <p class="text-xs text-slate-300 mb-5">目前的各隊分數與巡迴進度將會重設。</p>
+      <div class="grid grid-cols-2 gap-3">
+        <button type="button" onclick="closeResetModal()" class="py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold rounded-xl text-xs transition cursor-pointer">
+          取消返回
+        </button>
+        <button type="button" onclick="executeResetGame()" class="py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs transition cursor-pointer">
+          確定重開
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 巡迴結束！頒獎台結算彈窗 -->
+  <div id="modal-victory" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 items-center justify-center p-4 hidden" style="display: none;">
+    <div class="bg-slate-800 border-2 border-amber-400 rounded-3xl p-6 max-w-md w-full shadow-2xl text-center">
+      <span class="text-5xl block mb-2">🏆</span>
+      <h2 class="text-2xl font-black text-amber-300 tracking-wider">樂季巡迴圓滿結束！</h2>
+      <p class="text-xs text-slate-400 mt-1 mb-2">經過 10 輪巡迴演出，最終聲望與金幣結算如下：</p>
+      <div id="sheet-sync-status" class="text-xs font-bold text-amber-300 bg-slate-900/80 border border-slate-700 rounded-xl py-2 px-3 mb-4">
+        ⏳ 正在回傳各小隊金幣紀錄至 Google 試算表...
+      </div>
+
+      <div id="podium-list" class="flex flex-col gap-2 mb-6"></div>
+
+      <button type="button" onclick="executeResetGame()" class="w-full py-3 bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 font-black rounded-xl text-sm shadow-lg shadow-amber-500/30 transition cursor-pointer">
+        🎉 再玩一局總複習
+      </button>
+    </div>
+  </div>
+
+  <!-- 核心遊戲邏輯程式碼 -->
+  <script>
+    const GOOGLE_SHEET_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyRBEMr9F9M93UyO0pEXTXLGZN1BKl5jDqB7MJZxw7Nqr9QGhxx_Evkw89_c8kLDSetlQ/exec";
+
+    window.addEventListener('error', function(e) {
+      if (e && e.message && (e.message.includes('The play() request was interrupted') || e.message.includes('Audio') || e.message.includes('AbortError'))) {
+        e.preventDefault();
+        return true;
+      }
+    });
+
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+    let isMuted = false;
+    let verifiedAudioCache = {};
+    let isAudioUnlocked = false;
+    let fallbackAudioObj = null;
+
+    function getGlobalPlayer() {
+      return document.getElementById('global-bgm-player');
+    }
+
+    function initAudio() {
+      try {
+        if (!audioCtx) audioCtx = new AudioCtx();
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(() => {});
+        }
+        const player = getGlobalPlayer();
+        if (player) {
+          player.muted = false;
+          player.volume = 1.0;
+        }
+        if (!isAudioUnlocked) {
+          isAudioUnlocked = true;
+        }
+      } catch (e) {}
+    }
+
+    function toggleMute() {
+      isMuted = !isMuted;
+      document.getElementById('sound-icon').textContent = isMuted ? '🔇' : '🔊';
+      document.getElementById('sound-text').textContent = isMuted ? '靜音' : '音效開';
+      const player = getGlobalPlayer();
+      if (player) {
+        player.muted = isMuted;
+        if (isMuted) {
+          try { player.pause(); } catch (e) {}
+        }
+      }
+      if (fallbackAudioObj && isMuted) {
+        try { fallbackAudioObj.pause(); } catch (e) {}
+      }
+    }
+
+    function playCorrectSound() {
+      if (isMuted) return;
+      initAudio();
+      if (!audioCtx) return;
+      try {
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((freq, i) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, audioCtx.currentTime + i * 0.08);
+          gain.gain.setValueAtTime(0.2, audioCtx.currentTime + i * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.08 + 0.35);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(audioCtx.currentTime + i * 0.08);
+          osc.stop(audioCtx.currentTime + i * 0.08 + 0.35);
+        });
+      } catch (e) {}
+    }
+
+    function playWrongSound() {
+      if (isMuted) return;
+      initAudio();
+      if (!audioCtx) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(290, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(140, audioCtx.currentTime + 0.4);
+        gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + 0.4);
+      } catch (e) {}
+    }
+
+    function playStepSound() {
+      if (isMuted) return;
+      initAudio();
+      if (!audioCtx) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.08);
+      } catch (e) {}
+    }
+
+    function stopCurrentAudio() {
+      const player = getGlobalPlayer();
+      if (player) {
+        try {
+          player.pause();
+          player.currentTime = 0;
+          player.onerror = null;
+          player.onended = null;
+          player.onplaying = null;
+        } catch (e) {}
+      }
+      if (fallbackAudioObj) {
+        try {
+          fallbackAudioObj.pause();
+          fallbackAudioObj.currentTime = 0;
+        } catch (e) {}
+      }
+    }
+
+    function sanitizeAudioUrl(url) {
+      if (!url) return "";
+      if (url.includes("%")) return url;
+      return encodeURI(url).replace(/'/g, "%27");
+    }
+
+    function buildCandidateUrlList(urlOrList) {
+      const rawList = Array.isArray(urlOrList) ? urlOrList : [urlOrList];
+      const candidateUrls = [];
+      const addUnique = (u) => {
+        if (u && !candidateUrls.includes(u)) candidateUrls.push(u);
+      };
+
+      rawList.forEach(u => {
+        if (!u) return;
+        addUnique(u);
+        if (u.startsWith("./")) addUnique(u.slice(2));
+        else addUnique(`./${u}`);
+        addUnique(sanitizeAudioUrl(u));
+        if (u.startsWith("./")) addUnique(sanitizeAudioUrl(u.slice(2)));
+        const filenameOnly = u.split('/').pop();
+        if (filenameOnly) {
+          addUnique(`./audio/${filenameOnly}`);
+          addUnique(`audio/${filenameOnly}`);
+          addUnique(`./${filenameOnly}`);
+          addUnique(filenameOnly);
+          addUnique(sanitizeAudioUrl(`./audio/${filenameOnly}`));
+          addUnique(sanitizeAudioUrl(`./${filenameOnly}`));
+        }
+      });
+      return candidateUrls;
+    }
+
+    async function preflightResolveAudio(questionObj) {
+      if (!questionObj || !questionObj.mp3Url) return;
+      const player = getGlobalPlayer();
+
+      if (verifiedAudioCache[questionObj.id]) {
+        if (player && player.getAttribute('src') !== verifiedAudioCache[questionObj.id]) {
+          player.src = verifiedAudioCache[questionObj.id];
+          player.load();
+        }
+        return;
+      }
+
+      const candidates = buildCandidateUrlList(questionObj.mp3Url);
+      for (const url of candidates) {
+        try {
+          const res = await fetch(url, { method: 'HEAD', cache: 'no-cache' });
+          if (res.ok) {
+            verifiedAudioCache[questionObj.id] = url;
+            if (player) {
+              player.src = url;
+              player.load();
+            }
+            return;
+          }
+        } catch (e) {}
+      }
+      if (player && candidates.length > 0) {
+        player.src = candidates[0];
+        player.load();
+      }
+    }
+
+    function playMp3Audio(urlOrList, questionId) {
+      if (isMuted) {
+        isMuted = false;
+        document.getElementById('sound-icon').textContent = '🔊';
+        document.getElementById('sound-text').textContent = '音效開';
+      }
+      initAudio();
+
+      const player = getGlobalPlayer();
+      if (!player) return;
+
+      let candidateUrls = buildCandidateUrlList(urlOrList);
+      if (questionId && verifiedAudioCache[questionId]) {
+        const bestUrl = verifiedAudioCache[questionId];
+        candidateUrls = [bestUrl, ...candidateUrls.filter(u => u !== bestUrl)];
+      }
+
+      const statusText = document.getElementById('audio-status-text');
+      const playBtnIcon = document.getElementById('play-btn-icon');
+      const playBtnText = document.getElementById('play-btn-text');
+
+      let attemptIndex = 0;
+
+      function bindPlaybackEvents(targetAudio, url) {
+        targetAudio.onplaying = () => {
+          if (questionId) verifiedAudioCache[questionId] = url;
+          if (statusText) statusText.textContent = "🎵 正在播放樂段中...";
+          if (playBtnIcon) playBtnIcon.textContent = "🔁";
+          if (playBtnText) playBtnText.textContent = "重播樂段";
+        };
+        targetAudio.onended = () => {
+          if (statusText) statusText.textContent = "樂段播放完畢，可點擊重播";
+          if (playBtnIcon) playBtnIcon.textContent = "▶️";
+          if (playBtnText) playBtnText.textContent = "再次播放";
+        };
+      }
+
+      function tryNextUrl() {
+        if (attemptIndex >= candidateUrls.length) {
+          const primaryName = candidateUrls[0] ? candidateUrls[0].split('/').pop() : 'mp3';
+          if (statusText) statusText.textContent = `⚠️ 找不到音檔，請確認 audio/${primaryName} 是否已上傳`;
+          if (playBtnIcon) playBtnIcon.textContent = "⚠️";
+          if (playBtnText) playBtnText.textContent = "重試播放";
+          return;
+        }
+
+        const currentUrl = candidateUrls[attemptIndex];
+        attemptIndex++;
+        if (statusText) statusText.textContent = `載入樂段中（${currentUrl}）...`;
+
+        let hasHandledError = false;
+        const errorHandler = () => {
+          if (hasHandledError) return;
+          hasHandledError = true;
+          tryNextUrl();
+        };
+
+        player.muted = false;
+        player.volume = 1.0;
+        player.onerror = errorHandler;
+        bindPlaybackEvents(player, currentUrl);
+
+        try {
+          player.pause();
+          player.src = currentUrl;
+          player.load();
+          const playPromise = player.play();
+          if (playPromise !== undefined) {
+            playPromise.catch((err) => {
+              if (err && err.name === 'AbortError') return;
+              try {
+                fallbackAudioObj = new Audio(currentUrl);
+                fallbackAudioObj.volume = 1.0;
+                bindPlaybackEvents(fallbackAudioObj, currentUrl);
+                fallbackAudioObj.onerror = errorHandler;
+                fallbackAudioObj.play().catch(errorHandler);
+              } catch (e2) {
+                errorHandler();
+              }
+            });
+          }
+        } catch (err) {
+          errorHandler();
+        }
+      }
+
+      tryNextUrl();
+    }
+
+    const audioQuestionsPool = [
+      {
+        id: "a01",
+        title: "【歌劇聽力館 · 第6課】",
+        q: "請聆聽這段詠唱調〈情為何物〉(Voi Che Sapete)。劇中暗戀伯爵夫人的少男凱魯畢諾是由哪種人聲聲種反串飾演？",
+        options: ["次女高音 (Mezzo-soprano)", "花腔女高音", "男高音", "男中音"],
+        ans: 0,
+        exp: "課本第 6 課強調：少男凱魯畢諾情竇初開，在劇中設定是由「次女高音」反串飾演，唱出對愛情的悸動。",
+        mp3Url: ["./audio/voichesapete.mp3", "./audio/mozartoperavoichesapete.mp3"]
+      },
+      {
+        id: "a02",
+        title: "【歌劇聽力館 · 第6課】",
+        q: "請聆聽這首著名男高音詠唱調〈公主徹夜未眠〉(Nessun Dorma)。卡拉夫王子唱到最後，深信什麼終將獲得勝利？",
+        options: ["自己的愛", "宮廷的權力", "冰冷的黑夜", "公主的猜忌"],
+        ans: 0,
+        exp: "課本第 6 課介紹：〈公主徹夜未眠〉選自浦契尼歌劇《杜蘭朵公主》，卡拉夫王子（男高音）相信自己的愛終將獲得勝利，破曉之時將融化公主冰冷的心。",
+        mp3Url: ["./audio/nessundorma.mp3"]
+      },
+      {
+        id: "a03",
+        title: "【古典聽力館 · 第5課】",
+        q: "請聆聽這首貝多芬創作的經典鋼琴輪旋曲《給愛麗絲》(Für Elise)。它的曲式結構為何？",
+        options: ["ABACA 輪旋曲式", "呈示-發展-再現 奏鳴曲式", "單音音樂織度", "主題與 12 段變奏曲"],
+        ans: 0,
+        exp: "課本第 5 課特別介紹：貝多芬《給愛麗絲》為 1810 年創作的 a 小調鋼琴輪旋曲，其完整的結構為 ABACA。",
+        mp3Url: ["./audio/forelise.mp3"]
+      },
+      {
+        id: "a04",
+        title: "【古典聽力館 · 第5課】",
+        q: "請聆聽這段行板旋律。海頓在第 94 號交響曲《驚愕》第二樂章最安靜時設計了突然的強音 (ff)，其用意為何？",
+        options: ["驚醒在音樂會中打瞌睡的觀眾", "模仿暴風雨來臨的打雷聲", "提示歌劇演員準備由側台登場", "象徵團員吹熄蠟燭準備休假回家"],
+        ans: 0,
+        exp: "課本第 5 課重點：海頓第 94 號交響曲《驚愕》第二樂章中，海頓在音樂演奏到最安靜時設計一個突然出現的強音，讓睡夢中的觀眾驚醒。",
+        mp3Url: ["./audio/haydnsurprise.mp3"]
+      },
+      {
+        id: "a05",
+        title: "【古典聽力館 · 第5課】",
+        q: "請聆聽這段幽靜的鋼琴三連音旋律。這首貝多芬題獻給學生茱麗葉塔的第十四號鋼琴奏鳴曲，世人稱作什麼？",
+        options: ["《月光奏鳴曲》", "《悲愴奏鳴曲》", "《熱情奏鳴曲》", "《暴風雨奏鳴曲》"],
+        ans: 0,
+        exp: "課本第 5 課介紹：貝多芬第十四號鋼琴奏鳴曲寫給欣賞的學生茱麗葉塔，後人形容猶如置身月光閃耀湖面的搖盪小船上，從此以《月光》享譽世界。",
+        mp3Url: ["./audio/moonlight.mp3", "./audio/moonlight_2.mp3"]
+      },
+      {
+        id: "a06",
+        title: "【古典聽力館 · 第5課】",
+        q: "請聆聽這段工整、對稱且由弦樂合奏的跳躍旋律。這是莫札特哪首展現主音音樂清晰風格的室內樂名作？",
+        options: ["第十三號《弦樂小夜曲》", "《小星星變奏曲》", "《第四十號交響曲》", "《土耳其進行曲》"],
+        ans: 0,
+        exp: "課本第 5 課譜例：莫札特第十三號《弦樂小夜曲》(Eine kleine Nachtmusik) 展現了古典樂派樂句對稱工整、主音音樂清晰明朗的特徵。",
+        mp3Url: ["./audio/mozartseranede13.mp3", "./audio/mozartserenade13.mp3", "./audio/mozartseranede13_2.mp3", "./audio/mozartserenade.mp3", "./audio/mozartseranede.mp3"]
+      },
+      {
+        id: "a07",
+        title: "【歌劇聽力館 · 第6課】",
+        q: "請聆聽這段快樂吹著排笛的旋律（Pa-Pa-Pa...）。這是莫札特歌劇《魔笛》中哪位常民性格鮮明的喜劇角色？",
+        options: ["捕鳥人帕帕基諾 (Papageno)", "塔米諾王子", "大祭司薩拉斯托", "少男凱魯畢諾"],
+        ans: 0,
+        exp: "課本第 6 課介紹：在莫札特歌劇《魔笛》中，捕鳥人帕帕基諾個性樂天質樸，吹著排笛與帕帕基娜相認唱出經典二重唱。",
+        mp3Url: ["./audio/mozartoperapapapa.mp3", "./audio/papageno.mp3"]
+      },
+      {
+        id: "a08",
+        title: "【歌劇聽力館 · 第6課】",
+        q: "請聆聽這首熱鬧歡騰的三拍子二重唱。這是威爾第歌劇《茶花女》中，阿弗雷多與瓦列莉初次相遇時唱出的哪首名曲？",
+        options: ["〈飲酒歌〉(Libiamo ne' lieti calici)", "〈是瓦列莉小姐嗎？〉", "〈愛情像隻自由鳥〉", "〈女武神的飛行〉"],
+        ans: 0,
+        exp: "課本第 6 課指出：威爾第《茶花女》中阿弗雷多（男高音）與瓦列莉（女高音）唱出兩人初次相遇時舉杯慶祝歡樂時光的二重唱即為〈飲酒歌〉。",
+        mp3Url: ["./audio/Libiamone'lieticalici.mp3", "./audio/Libiamo ne' lieti calici.mp3"]
+      },
+      {
+        id: "a09",
+        title: "【歌劇聽力館 · 第6課】",
+        q: "請聆聽這段技巧高超的花腔高音詠唱調。劇中憤怒拿著銀匕首命令帕米娜刺殺大祭司的是哪位角色？",
+        options: ["夜后 (Königin der Nacht)", "帕米娜公主", "蘇珊娜", "瓦列莉"],
+        ans: 0,
+        exp: "課本第 6 課：莫札特歌劇《魔笛》中，夜后唱出〈復仇的火焰在心中燃燒〉，憤怒要求女兒帕米娜刺殺大祭司。",
+        mp3Url: ["./audio/mozartoperamagicflute.mp3", "./audio/Der Hölle Rache kocht in meinem Herzen.mp3"]
+      },
+      {
+        id: "a10",
+        title: "【古典聽力館 · 第5課】",
+        q: "請聆聽這段著名的小調嘆息動機，這首莫札特僅有的兩首小調交響曲之一是？",
+        options: ["《第四十號交響曲》", "《第十三號弦樂小夜曲》", "《第四十一號朱比特交響曲》", "《驚愕交響曲》"],
+        ans: 0,
+        exp: "課本第 5 課譜例：莫札特 G 小調第 40 號交響曲第一樂章以優雅而略帶感傷的小調主題著稱。",
+        mp3Url: ["./audio/mozartsymphony40.mp3"]
+      },
+      {
+        id: "a11",
+        title: "【古典聽力館 · 第5課】",
+        q: "請聆聽這段歡快活躍、富含異國風情的進行曲主題。這是莫札特第 11 號鋼琴奏鳴曲第三樂章的哪首名曲？",
+        options: ["《土耳其進行曲》", "《給愛麗絲》", "《小星星變奏曲》", "《月光奏鳴曲》"],
+        ans: 0,
+        exp: "課本第 5 課介紹：莫札特鋼琴奏鳴曲 K.331 第三樂章為輪旋曲式《土耳其進行曲》(Alla Turca)。",
+        mp3Url: ["./audio/mozartturckymarch.mp3", "./audio/mozartturkymarch.mp3", "./audio/mozartturkishmarch.mp3"]
+      },
+      {
+        id: "a12",
+        title: "【古典聽力館 · 第5課】",
+        q: "請聆聽這段著名的變奏曲主題。莫札特以此段法國歌曲《媽媽請聽我說》創作了多少段精彩的變奏？",
+        options: ["12 段變奏", "8 段變奏", "16 段變奏", "4 段變奏"],
+        ans: 0,
+        exp: "課本第 5 課指出：莫札特《小星星變奏曲》主題源自法國民謠，莫札特一共為其譜寫了 12 段豐富變奏。",
+        mp3Url: ["./audio/mozartvariation.mp3"]
+      },
+      {
+        id: "a13",
+        title: "【古典聽力館 · 第5課】",
+        q: "請聆聽開頭極具震撼力的「短-短-短-長」四音符動機。這首被德國浪漫主義作家霍夫曼譽為「當代最重要作品之一」的交響曲是？",
+        options: ["貝多芬《第五號交響曲（命運）》", "貝多芬《第六號交響曲（田園）》", "海頓《第九十四號交響曲（驚愕）》", "莫札特《第四十號交響曲》"],
+        ans: 0,
+        exp: "課本第 5 課介紹：貝多芬第五號《命運》交響曲全曲以特別的四音符「短-短-短-長」主題開頭，德國浪漫主義作家 E·T·A 霍夫曼將此作品稱作「當代最重要的作品之一」。",
+        mp3Url: ["./audio/beethovensymphony5.mp3", "./audio/beethovensymphony5_2.mp3"]
+      },
+      {
+        id: "a14",
+        title: "【古典聽力館 · 第5課】",
+        q: "請聆聽這段第四樂章氣勢磅礴的德文合唱旋律。這首改編自德國詩人席勒詩作《歡樂頌》、首創將人聲加入交響曲的巨作是？",
+        options: ["貝多芬《第九號交響曲（合唱）》", "貝多芬《第三號交響曲（英雄）》", "莫札特《安魂曲》", "海頓《創世紀》"],
+        ans: 0,
+        exp: "課本第 5 課介紹：貝多芬第九號《合唱》交響曲於第四樂章加入四位獨唱與合唱團，歌詞使用德國詩人席勒的詩《歡樂頌》(An die Freude) 改編，為音樂史上首次加入人聲的交響曲作品。",
+        mp3Url: ["./audio/beethovensymphony9.mp3", "./audio/beethovensymphony9_2.mp3", "./audio/beethovensym9.mp3"]
+      },
+      {
+        id: "a15",
+        title: "【古典聽力館 · 第5課】",
+        q: "請聆聽這首海頓著名的交響曲。演奏到最後樂章時，團員們會一一吹熄譜架上的蠟燭離開舞台，最後只留下兩把小提琴孤獨演奏，巧妙向公爵表達想休假回家的心情，這首曲子是？",
+        options: ["海頓《第四十五號交響曲（告別）》", "海頓《第九十四號交響曲（驚愕）》", "海頓《第一〇一號交響曲（時鐘）》", "莫札特《第十三號弦樂小夜曲》"],
+        ans: 0,
+        exp: "課本第 5 課介紹：西元 1772 年夏天埃斯特哈齊公爵出遊，隨行樂手無法和家人見面，海頓便寫了第 45 號《告別交響曲》，最後樂章團員一一結束演奏退場，公爵一聽便明白團員心聲，立刻讓大家休假。",
+        mp3Url: ["./audio/haydnsymphonyfarewell.mp3", "./audio/haydnsymphonyfarewell_2.mp3"]
+      }
+    ];
+
+    const textQuestionsPool = [
+      {
+        id: "t01",
+        title: "【歌劇大劇院 · 第6課】",
+        q: "課本第 6 課提到歌劇中的「美聲唱法」(Bel Canto)，以下哪一項不是其強調的核心特色？",
+        options: ["優美的音色與細膩的技術", "清晰的咬字與流暢的曲調", "完全不使用共鳴腔體以維持直白喉音", "靈活運用歌唱能使用到的共鳴腔體展現高超技巧"],
+        ans: 2,
+        exp: "課本「藝術小百科」說明：美聲唱法 (Bel Canto) 強調優美音色、清晰咬字、細膩技術與流暢曲調，並靈活運用人體共鳴腔體展現高超技巧。"
+      },
+      {
+        id: "t02",
+        title: "【古典知識廳 · 第5課】",
+        q: "在古典時期「奏鳴曲式」(Sonata form) 的標準段落中，當進入「再現部」時，第二主題的調性會發生什麼變化？",
+        options: ["轉到主調，與第一主題調性相同", "轉到屬調以形成強烈對比", "調性持續模糊、四處遊走冒險", "保持在關係大小調不變"],
+        ans: 0,
+        exp: "課本第 5 課「常見曲式」圖解：呈示部第二主題在屬調/關係大調，發展部調性模糊，到了再現部第二主題會轉回「主調」，與第一主題調性相同。"
+      },
+      {
+        id: "t03",
+        title: "【古典知識廳 · 第5課】",
+        q: "18 世紀初由義大利製琴師克里斯多弗里發明、被譽為「樂器之王」的現代鋼琴，一共有多少個琴鍵？",
+        options: ["88 鍵（白鍵 52、黑鍵 36）", "88 鍵（白鍵 50、黑鍵 38）", "76 鍵（白鍵 44、黑鍵 32）", "61 鍵（白鍵 36、黑鍵 25）"],
+        ans: 0,
+        exp: "課本第 5 課「重要樂器-鋼琴」指出：現代鋼琴具有 88 個琴鍵（白鍵 52 個、黑鍵 36 個），因音樂表達力豐富被稱為「樂器之王」。"
+      },
+      {
+        id: "t04",
+        title: "【歌劇大劇院 · 第6課】",
+        q: "關於歌劇中「詠唱調」(Aria) 與「宣敘調」(Recitative) 的比較，下列何者完全符合課本的敘述？",
+        options: ["宣敘調半說半唱著重交代劇情；詠唱調抒發人物情感並展現歌唱實力", "宣敘調極具音樂性與旋律結構；詠唱調完全像日常說話沒有伴奏", "宣敘調通常由管弦樂團盛大演奏；詠唱調一律使用大鍵琴即興伴奏", "兩者完全相同，只是義大利語與德語稱呼的差異"],
+        ans: 0,
+        exp: "課本第 6 課重點：宣敘調（朗誦調）半說半唱、節奏自由、伴奏簡單、負責陳述交代劇情；詠唱調則具備曲調結構，表達內心感情與展現歌唱高超技巧。"
+      },
+      {
+        id: "t05",
+        title: "【古典知識廳 · 第5課】",
+        q: "西方音樂史中，「古典時期（古典樂派）」大約涵蓋哪一個年代區間？",
+        options: ["西元 1750 年 ～ 1820 年", "西元 1600 年 ～ 1750 年", "西元 1820 年 ～ 1900 年", "西元 1900 年 ～ 1950 年"],
+        ans: 0,
+        exp: "課本第 5 課音樂分期表：巴洛克時期為 1600-1750 年，古典樂派為 1750-1820 年，浪漫樂派為 1820-1900 年。"
+      },
+      {
+        id: "t06",
+        title: "【古典知識廳 · 第5課】",
+        q: "「有一條清晰的主要旋律，並搭配和聲伴奏（如鋼琴伴奏）」，請問這種古典樂派最主要的音樂織度稱為什麼？",
+        options: ["主音音樂 (Homophony)", "單音音樂 (Monophony)", "複音音樂 (Polyphony)", "無調性音樂 (Atonality)"],
+        ans: 0,
+        exp: "課本第 5 課「音樂織度」：單音音樂無伴奏；複音音樂由兩條以上對比旋律一起唱；主音音樂則有一條清晰主旋律並搭配和聲伴奏。"
+      },
+      {
+        id: "t07",
+        title: "【古典知識廳 · 第5課】",
+        q: "十八世紀時，哪一座城市成為歐洲音樂發展中心，使古典樂派又被稱為「維也納古典樂派」？",
+        options: ["奧地利 維也納", "義大利 拿坡里", "法國 巴黎", "德國 萊比錫"],
+        ans: 0,
+        exp: "課本第 5 課：十八世紀時奧地利維也納為歐洲音樂發展中心，受啟蒙運動影響追求自然與理性思維，又稱「維也納古典樂派」。"
+      },
+      {
+        id: "t08",
+        title: "【古典知識廳 · 第5課】",
+        q: "在奏鳴曲式的「呈示部」中，如果第一主題是「小調」，那麼第二主題通常會轉到什麼調性？",
+        options: ["關係大調", "屬調", "維持原小調", "不穩定且模糊的調性"],
+        ans: 0,
+        exp: "課本第 5 課表格：呈示部中，第一主題若為大調，第二主題會在其屬調；第一主題若為小調，第二主題則會在其「關係大調」。"
+      },
+      {
+        id: "t09",
+        title: "【古典知識廳 · 第5課】",
+        q: "輪旋曲式 (Rondo form) 由主要部分 (A) 與次要部分 (B、C、D) 不斷交替（如 ABACADA），其中次要部分被稱作什麼？",
+        options: ["插句樂章", "輪旋樂章", "發展樂章", "呈示樂章"],
+        ans: 0,
+        exp: "課本第 5 課介紹：輪旋曲式中，主要部分(A)通稱為「輪旋樂章」，次要部分(B或C或D)則稱為「插句樂章」，兩者不斷交替輪迴。"
+      },
+      {
+        id: "t10",
+        title: "【古典知識廳 · 第5課】",
+        q: "義大利製琴師克里斯多弗里於 18 世紀初發明鋼琴時，使用什麼原理與裝置取代了大鍵琴的撥弦裝置，讓樂器能彈出強弱變化？",
+        options: ["槓桿原理與「琴槌擊弦裝置」", "氣壓原理與「風箱送氣裝置」", "電磁原理與「金屬拾音裝置」", "彈簧原理與「羽毛撥弦裝置」"],
+        ans: 0,
+        exp: "課本第 5 課：克里斯多弗里使用「槓桿原理」並利用「擊弦裝置」取代大鍵琴的撥弦裝置，被稱為「有強弱音的大鍵琴」(Gravicembalo col piano e forte)。"
+      },
+      {
+        id: "t11",
+        title: "【古典知識廳 · 第5課】",
+        q: "海頓一生創作了 104 首交響曲，確立了交響曲「四個樂章」的形式，因而被尊稱為「交響曲之父」。請問標準交響曲的「第一樂章」通常採用什麼速度與曲式？",
+        options: ["快板 · 奏鳴曲式", "慢板或行板 · 三段體或變奏曲", "中板 · 小步舞曲或詼諧曲", "急板 · 輪旋曲式"],
+        ans: 0,
+        exp: "課本第 5 課表格：交響曲第一樂章為「快板、奏鳴曲式」；第二樂章為慢板或行板；第三樂章為小步舞曲或詼諧曲；第四樂章為快板或急板。"
+      },
+      {
+        id: "t12",
+        title: "【古典知識廳 · 第5課】",
+        q: "「樂聖」貝多芬一生創作了 9 首交響曲與 32 首鋼琴奏鳴曲。其中他的 32 首《鋼琴奏鳴曲》在音樂史上被譽為什麼？",
+        options: ["鋼琴新約聖經", "鋼琴舊約聖經", "交響曲之冠", "歌劇百科全書"],
+        ans: 0,
+        exp: "課本第 5 課指出：貝多芬的 32 首《鋼琴奏鳴曲》被稱為「鋼琴新約聖經」（巴哈《平均律鋼琴曲集》則為舊約聖經）。"
+      },
+      {
+        id: "t13",
+        title: "【歌劇大劇院 · 第6課】",
+        q: "課本第 6 課介紹，結合音樂、戲劇、文學、舞蹈與舞台美術的「歌劇」(Opera)，最早發源於哪一個國家？",
+        options: ["義大利（拿坡里等城市）", "德國", "法國", "英國"],
+        ans: 0,
+        exp: "課本第 6 課「歌劇的特色」記載：歌劇發源於義大利拿坡里，重視演員歌唱的美聲唱法 (bel canto)。"
+      },
+      {
+        id: "t14",
+        title: "【歌劇大劇院 · 第6課】",
+        q: "在歌劇開演前，由管弦樂團演奏、早期用來提示觀眾入座，後來用來「暗示劇情與綜合敘述全劇發展」的器樂曲稱為什麼？",
+        options: ["序曲 (Overture)", "宣敘調 (Recitative)", "詠唱調 (Aria)", "重唱 (Ensemble)"],
+        ans: 0,
+        exp: "課本第 6 課：歌劇序曲 (Overture) 由管弦樂演奏，早期提示觀眾歌劇即將開演，後來作曲家結合劇情與序曲，藉由樂曲氣氛暗示全劇發展。"
+      },
+      {
+        id: "t15",
+        title: "【歌劇大劇院 · 第6課】",
+        q: "法國作曲家比才 (Georges Bizet) 的著名歌劇《卡門》(Carmen) 中，描寫「愛情像一隻自由鳥，不能馴服牠」的經典曲調是？",
+        options: ["〈愛情像隻自由鳥〉(L'amour est un oiseau rebelle)", "〈情為何物〉", "〈飲酒歌〉", "〈公主徹夜未眠〉"],
+        ans: 0,
+        exp: "課本第 6 課譜例介紹：比才《卡門》中的〈愛情像隻自由鳥〉（哈巴奈拉舞曲），常被運用在電視劇與電影配樂中。"
+      },
+      {
+        id: "t16",
+        title: "【歌劇大劇院 · 第6課】",
+        q: "在莫札特的喜歌劇《費加洛婚禮》中，男主角僕人「費加洛」與女主角侍女「蘇珊娜」分別是由哪兩種人聲音色演唱？",
+        options: ["費加洛：男中音 ／ 蘇珊娜：女高音", "費加洛：男高音 ／ 蘇珊娜：次女高音", "費加洛：男低音 ／ 蘇珊娜：女低音", "兩人皆由次女高音反串"],
+        ans: 0,
+        exp: "課本第 6 課：劇情描述伯爵的僕人費加洛（男中音）和伯爵夫人的侍女蘇珊娜（女高音）兩情相悅，排除萬難完成婚禮。"
+      },
+      {
+        id: "t17",
+        title: "【歌劇大劇院 · 第6課】",
+        q: "義大利歌劇巨擘威爾第 (Giuseppe Verdi) 的哪一部歌劇以「古埃及」作為服裝及舞臺設計依據，充滿異國風格曲調？",
+        options: ["《阿伊達》(Aida)", "《茶花女》(La Traviata)", "《納布果》(Nabucco)", "《波希米亞人》(La Bohème)"],
+        ans: 0,
+        exp: "課本第 6 課：威爾第《納布果》展現愛國精神、《弄臣》與《茶花女》細膩描述人性、《阿伊達》則以埃及為故事背景，充滿異國風格曲調。"
+      },
+      {
+        id: "t18",
+        title: "【歌劇大劇院 · 第6課】",
+        q: "德國歌劇大師華格納 (Richard Wagner) 創作的《尼伯龍根的指環》第二部《女武神》中，大量運用銅管樂器且常被電影引用的樂曲是？",
+        options: ["〈女武神的飛行〉(Walkürenritt)", "〈公主徹夜未眠〉", "〈飛吧！思想，乘著金色的翅膀〉", "〈情為何物〉"],
+        ans: 0,
+        exp: "課本第 6 課：華格納《尼伯龍根的指環》第二部《女武神》中的〈女武神的飛行〉運用大量銅管樂器，氣勢磅礴，常被電影選為配樂。"
+      },
+      {
+        id: "t19",
+        title: "【歌劇大劇院 · 第6課】",
+        q: "義大利作曲家浦契尼 (Giacomo Puccini) 的名作《藝術家的生涯》（又名《波希米亞人》）中，男主角魯道夫握著女主角的手所唱的深情名曲是？",
+        options: ["〈你那冰冷的小手〉(Che Gelida Manina)", "〈情為何物〉", "〈夏日時光〉", "〈飲酒歌〉"],
+        ans: 0,
+        exp: "課本第 6 課：浦契尼代表作包含《藝術家的生涯》（波希米亞人）、《托斯卡》、《蝴蝶夫人》、《杜蘭朵公主》，其中〈你那冰冷的小手〉出自《藝術家的生涯》。"
+      },
+      {
+        id: "t20",
+        title: "【歌劇大劇院 · 第6課】",
+        q: "美國作曲家蓋希文 (George Gershwin) 巧妙結合歐洲傳統古典樂與「美國爵士樂」曲風，創做出哪一齣著名歌劇（包含名曲〈夏日時光〉）？",
+        options: ["《波吉與貝絲》(Porgy and Bess)", "《杜蘭朵公主》(Turandot)", "《尼伯龍根的指環》", "《威廉·泰爾》"],
+        ans: 0,
+        exp: "課本第 6 課習唱曲：蓋希文結合古典樂與美國爵士樂創作歌劇《波吉與貝絲》，劇中〈夏日時光〉是一首溫柔動聽的爵士搖籃曲。"
+      },
+      {
+        id: "t21",
+        title: "【歌劇大劇院 · 第6課】",
+        q: "中音直笛習奏曲〈飛吧！思想，乘著金色的翅膀〉（選自威爾第歌劇《納布果》），描寫的是哪一個族群思念家鄉、盼望回到故土的心情？",
+        options: ["被奴役的猶太奴隸", "古埃及的皇室貴族", "瑞士的革命軍人", "維也納的宮廷樂手"],
+        ans: 0,
+        exp: "課本第 6 課直笛習奏：〈飛吧！思想，乘著金色的翅膀〉（希伯來奴隸之歌）是由猶太奴隸唱出的合唱曲，描寫思念家鄉、盼望重建以色列的心情。"
+      }
+    ];
+
+    const eventsBank = [
+      { type: "chance", title: "📰 樂壇快訊 · 埃斯特哈齊家族俸祿", desc: "海頓受聘擔任宮廷樂長，帶領宮廷樂團每日排練交響曲，獲得充裕贊助經費！", rp: 60, gold: 150 },
+      { type: "chance", title: "📰 樂壇快訊 · 告別交響曲奇效", desc: "演奏最後樂章時團員一一吹熄蠟燭退場，公爵體恤樂手思鄉之情，全員立刻放假！", rp: 100, gold: 50 },
+      { type: "chance", title: "📰 樂壇快訊 · 喜歌劇首演滿座", desc: "莫札特《費加洛婚禮》首演大獲成功，維也納全城都在傳唱動聽的詠唱調！", rp: 80, gold: 120 },
+      { type: "fate", title: "📜 樂評專欄 · 擊弦裝置微調", desc: "克里斯多弗里發明的「槓桿跳脫器」琴槌機械故障，緊急聘請技師調校鋼琴琴弦！", rp: 30, gold: -80 },
+      { type: "fate", title: "📜 樂評專欄 · 劇院音響反射板受損", desc: "歌劇院演出華格納樂劇時銅管聲響過於巨大，劇院管線損壞需支付檢修費！", rp: 40, gold: -60 }
+    ];
+
+    const boardTiles = [
+      { id: 0, name: "巡迴補給站", type: "start", icon: "🚩", desc: "起點 · 通過獲得 100 金幣" },
+      { id: 1, name: "古典知識廳", type: "quiz", icon: "🎻", desc: "主音音樂與曲式結構" },
+      { id: 2, name: "歌劇大劇院", type: "quiz", icon: "🎭", desc: "費加洛婚禮與喜歌劇" },
+      { id: 3, name: "樂壇快訊", type: "chance", icon: "📰", desc: "翻閱機會卡" },
+      { id: 4, name: "古典聽力館", type: "audio", icon: "🎧", desc: "交響曲主題聽辨" },
+      { id: 5, name: "歌劇大劇院", type: "quiz", icon: "🎭", desc: "茶花女與美聲唱法" },
+      { id: 6, name: "樂評專欄", type: "fate", icon: "📜", desc: "命運突發事件考驗" },
+      { id: 7, name: "古典知識廳", type: "quiz", icon: "🎼", desc: "鋼琴歷史與三巨頭" },
+      { id: 8, name: "維也納大廳", type: "rest", icon: "🏛️", desc: "中場休息 · 交流研討" },
+      { id: 9, name: "歌劇聽力館", type: "audio", icon: "🎧", desc: "魔笛與經典詠唱調" },
+      { id: 10, name: "樂壇快訊", type: "chance", icon: "📰", desc: "翻閱機會卡" },
+      { id: 11, name: "古典知識廳", type: "quiz", icon: "🎻", desc: "奏鳴曲式與輪旋曲式" },
+      { id: 12, name: "大師沙龍", type: "audio", icon: "🎧", desc: "聆聽室內樂動機" },
+      { id: 13, name: "樂評專欄", type: "fate", icon: "📜", desc: "命運突發事件考驗" },
+      { id: 14, name: "歌劇大劇院", type: "quiz", icon: "🎭", desc: "詠唱調 vs 宣敘調" },
+      { id: 15, name: "古典聽力館", type: "audio", icon: "🎧", desc: "聆聽經典管弦樂章" }
+    ];
+
+    const tileCoords = [
+      { r: 5, c: 1 }, { r: 4, c: 1 }, { r: 3, c: 1 }, { r: 2, c: 1 },
+      { r: 1, c: 1 }, { r: 1, c: 2 }, { r: 1, c: 3 }, { r: 1, c: 4 },
+      { r: 1, c: 5 }, { r: 2, c: 5 }, { r: 3, c: 5 }, { r: 4, c: 5 },
+      { r: 5, c: 5 }, { r: 5, c: 4 }, { r: 5, c: 3 }, { r: 5, c: 2 }
+    ];
+
+    const allTeamsConfig = [
+      { id: 0, name: "小提琴隊", icon: "🎻", color: "red", bgClass: "bg-red-500", borderClass: "border-red-400", textClass: "text-red-400", lightBg: "bg-red-950/40" },
+      { id: 1, name: "鋼琴隊", icon: "🎹", color: "sky", bgClass: "bg-sky-500", borderClass: "border-sky-400", textClass: "text-sky-400", lightBg: "bg-sky-950/40" },
+      { id: 2, name: "長笛隊", icon: "🪈", color: "emerald", bgClass: "bg-emerald-500", borderClass: "border-emerald-400", textClass: "text-emerald-400", lightBg: "bg-emerald-950/40" },
+      { id: 3, name: "小號隊", icon: "🎺", color: "amber", bgClass: "bg-amber-500", borderClass: "border-amber-400", textClass: "text-amber-300", lightBg: "bg-amber-950/40" },
+      { id: 4, name: "法國號隊", icon: "📯", color: "purple", bgClass: "bg-purple-500", borderClass: "border-purple-400", textClass: "text-purple-400", lightBg: "bg-purple-950/40" },
+      { id: 5, name: "定音鼓隊", icon: "🥁", color: "orange", bgClass: "bg-orange-500", borderClass: "border-orange-400", textClass: "text-orange-400", lightBg: "bg-orange-950/40" }
+    ];
+
+    let teams = [];
+    let currentClassName = "";
+    let selectedTeamCount = 6;
+    let currentTeamIndex = 0;
+    let currentRound = 1;
+    const maxRounds = 10;
+    let isRolling = false;
+    let activeQuestion = null;
+    let quizCountdownTimer = null;
+
+    let shuffledAudioDeck = [];
+    let shuffledTextDeck = [];
+
+    function renderRosterForms(count) {
+      const container = document.getElementById('roster-forms-container');
+      container.innerHTML = '';
+
+      allTeamsConfig.slice(0, count).forEach((team, tIdx) => {
+        const card = document.createElement('div');
+        card.className = "bg-slate-900/75 border border-slate-700 rounded-2xl p-3 flex flex-col gap-1.5";
+
+        let inputsHtml = '';
+        for (let mIdx = 0; mIdx < 6; mIdx++) {
+          const isRequiredHint = mIdx < 5 ? `組員 ${mIdx + 1}（座號＋姓名）` : `組員 6（選填・座號＋姓名）`;
+          inputsHtml += `
+            <input
+              type="text"
+              data-team-index="${tIdx}"
+              data-member-index="${mIdx}"
+              placeholder="${isRequiredHint}"
+              class="roster-member-input w-full px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 focus:border-amber-400 focus:outline-none text-xs text-slate-100"
+            >
+          `;
+        }
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between border-b border-slate-800 pb-1.5 mb-0.5">
+            <span class="font-bold text-xs ${team.textClass}">${team.icon} ${team.name}</span>
+            <span class="text-[10px] text-slate-400">5～6 人</span>
+          </div>
+          ${inputsHtml}
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function selectTeamCount(count) {
+      selectedTeamCount = count;
+      const btn5 = document.getElementById('btn-choice-5');
+      const btn6 = document.getElementById('btn-choice-6');
+
+      if (count === 5) {
+        btn5.className = "py-2.5 px-3 rounded-xl border-2 border-amber-500 bg-amber-500/20 active:scale-95 text-xs md:text-sm font-bold text-amber-300 transition flex flex-col items-center justify-center gap-0.5 cursor-pointer";
+        btn6.className = "py-2.5 px-3 rounded-xl border-2 border-slate-600 bg-slate-700 hover:border-amber-400 active:scale-95 text-xs md:text-sm font-bold text-slate-200 transition flex flex-col items-center justify-center gap-0.5 cursor-pointer";
+      } else {
+        btn6.className = "py-2.5 px-3 rounded-xl border-2 border-amber-500 bg-amber-500/20 active:scale-95 text-xs md:text-sm font-bold text-amber-300 transition flex flex-col items-center justify-center gap-0.5 cursor-pointer";
+        btn5.className = "py-2.5 px-3 rounded-xl border-2 border-slate-600 bg-slate-700 hover:border-amber-400 active:scale-95 text-xs md:text-sm font-bold text-slate-200 transition flex flex-col items-center justify-center gap-0.5 cursor-pointer";
+      }
+
+      renderRosterForms(count);
+    }
+
+    function showSetupError(msg) {
+      const errEl = document.getElementById('setup-error-msg');
+      errEl.textContent = msg;
+      errEl.classList.remove('hidden');
+      errEl.style.display = 'block';
+    }
+
+    function hideSetupError() {
+      const errEl = document.getElementById('setup-error-msg');
+      errEl.textContent = '';
+      errEl.classList.add('hidden');
+      errEl.style.display = 'none';
+    }
+
+    function launchGame() {
+      const classInput = document.getElementById('input-class-name');
+      const className = (classInput ? classInput.value : '').trim();
+
+      if (!className) {
+        showSetupError("⚠️ 請先輸入或選擇「班級」（例如：805）！");
+        return;
+      }
+
+      const rosterByTeam = Array.from({ length: selectedTeamCount }, () => []);
+      document.querySelectorAll('.roster-member-input').forEach(inp => {
+        const tIdx = Number(inp.dataset.teamIndex);
+        const val = inp.value.trim();
+        if (val && tIdx >= 0 && tIdx < selectedTeamCount) {
+          rosterByTeam[tIdx].push(val);
+        }
+      });
+
+      for (let i = 0; i < selectedTeamCount; i++) {
+        if (rosterByTeam[i].length === 0) {
+          showSetupError(`⚠️ 「${allTeamsConfig[i].name}」至少需填寫 1 位組員的座號與姓名！`);
+          return;
+        }
+      }
+
+      hideSetupError();
+      currentClassName = className;
+      startGame(selectedTeamCount, rosterByTeam);
+    }
+
+    function shuffleArray(arr) {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function getNextUniqueQuestion(tileType) {
+      if (tileType === 'audio') {
+        if (shuffledAudioDeck.length === 0) shuffledAudioDeck = shuffleArray(audioQuestionsPool);
+        return shuffledAudioDeck.pop();
+      } else {
+        if (shuffledTextDeck.length === 0) shuffledTextDeck = shuffleArray(textQuestionsPool);
+        return shuffledTextDeck.pop();
+      }
+    }
+
+    function startGame(teamCount, rosterByTeam = []) {
+      initAudio();
+      teams = allTeamsConfig.slice(0, teamCount).map((t, idx) => ({
+        ...t,
+        membersList: rosterByTeam[idx] || [],
+        membersText: (rosterByTeam[idx] || []).join("、"),
+        position: 0,
+        rp: 0,
+        gold: 300
+      }));
+
+      currentTeamIndex = 0;
+      currentRound = 1;
+
+      shuffledAudioDeck = shuffleArray(audioQuestionsPool);
+      shuffledTextDeck = shuffleArray(textQuestionsPool);
+
+      const setupModal = document.getElementById('modal-setup');
+      if (setupModal) {
+        setupModal.classList.add('hidden');
+        setupModal.style.display = 'none';
+      }
+
+      buildBoard();
+      renderScoreboard();
+      updateTurnIndicator();
+    }
+
+    function buildBoard() {
+      const grid = document.getElementById('board-grid');
+      grid.innerHTML = '';
+
+      for (let i = 0; i < 16; i++) {
+        const tile = boardTiles[i];
+        const coord = tileCoords[i];
+
+        const tileEl = document.createElement('div');
+        tileEl.id = `tile-${i}`;
+        tileEl.style.gridRow = coord.r;
+        tileEl.style.gridColumn = coord.c;
+
+        let borderBg = "bg-slate-800/90 border-slate-700";
+        if (tile.type === 'start') borderBg = "bg-red-950/50 border-red-500/80";
+        else if (tile.type === 'quiz') borderBg = "bg-amber-950/40 border-amber-500/50";
+        else if (tile.type === 'audio') borderBg = "bg-cyan-950/40 border-cyan-500/50";
+        else if (tile.type === 'chance') borderBg = "bg-blue-950/40 border-blue-500/50";
+        else if (tile.type === 'fate') borderBg = "bg-purple-950/40 border-purple-500/50";
+
+        tileEl.className = `${borderBg} border-2 rounded-xl p-1 md:p-1.5 flex flex-col justify-between relative shadow-md overflow-hidden transition`;
+
+        tileEl.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-sm md:text-base">${tile.icon}</span>
+            <span class="text-[9px] md:text-[10px] font-mono text-slate-400 font-bold">#${i}</span>
+          </div>
+          <div class="text-[10px] md:text-xs font-bold text-slate-200 truncate my-0.5">${tile.name}</div>
+          <div id="tile-slot-${i}" class="grid grid-cols-3 gap-0.5 bg-slate-950/60 p-0.5 rounded-md min-h-[22px] items-center"></div>
+        `;
+
+        grid.appendChild(tileEl);
+      }
+      renderPlayerTokens();
+    }
+
+    function renderPlayerTokens() {
+      for (let i = 0; i < 16; i++) {
+        const slot = document.getElementById(`tile-slot-${i}`);
+        if (slot) slot.innerHTML = '';
+      }
+
+      teams.forEach((team, idx) => {
+        const slot = document.getElementById(`tile-slot-${team.position}`);
+        if (slot) {
+          const token = document.createElement('div');
+          const isCurrent = idx === currentTeamIndex;
+          token.className = `w-4 h-4 md:w-5 md:h-5 rounded-full ${team.bgClass} flex items-center justify-center text-[9px] md:text-[11px] shadow-md border border-white/80 transition-all ${isCurrent ? 'ring-2 ring-yellow-300 scale-110 z-10' : 'opacity-90'}`;
+          token.title = `${team.name}（${team.membersText}）`;
+          token.textContent = team.icon;
+          slot.appendChild(token);
+        }
+      });
+    }
+
+    function renderScoreboard() {
+      const container = document.getElementById('teams-scoreboard');
+      container.innerHTML = '';
+
+      teams.forEach((t, idx) => {
+        const isCurrent = idx === currentTeamIndex;
+        const card = document.createElement('div');
+        card.className = `p-2.5 rounded-xl border transition ${isCurrent ? `${t.borderClass} ${t.lightBg} shadow-lg ring-1 ring-amber-400/50` : 'border-slate-700/80 bg-slate-900/60'}`;
+        card.innerHTML = `
+          <div class="flex items-center justify-between mb-1">
+            <div class="flex items-center gap-1.5 font-bold text-xs ${t.textClass}">
+              <span>${t.icon}</span>
+              <span>${t.name}</span>
+              ${isCurrent ? '<span class="text-[10px] bg-amber-400 text-slate-950 px-1 rounded font-black animate-pulse">輪到</span>' : ''}
+            </div>
+            <div class="text-[10px] text-slate-400 font-mono">格位 #${t.position}</div>
+          </div>
+          <div class="text-[10px] text-slate-400 truncate mb-1.5" title="${t.membersText}">👥 ${t.membersText}</div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div class="bg-slate-950/60 rounded px-2 py-1 flex items-center justify-between">
+              <span class="text-slate-400 text-[10px]">聲望</span>
+              <span class="font-bold text-amber-300">${t.rp}</span>
+            </div>
+            <div class="bg-slate-950/60 rounded px-2 py-1 flex items-center justify-between">
+              <span class="text-slate-400 text-[10px]">金幣</span>
+              <span class="font-bold text-yellow-400">${t.gold}</span>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function updateTurnIndicator() {
+      const currentTeam = teams[currentTeamIndex];
+      const announcer = document.getElementById('active-team-name');
+      announcer.textContent = currentTeam.name;
+      announcer.className = `font-bold ${currentTeam.textClass}`;
+      document.getElementById('current-round-text').textContent = currentRound;
+    }
+
+    const diceFaces = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+
+    function handleRollDice() {
+      if (isRolling) return;
+      initAudio();
+      isRolling = true;
+      stopCurrentAudio();
+
+      const btn = document.getElementById('btn-roll-dice');
+      btn.disabled = true;
+      btn.classList.add('opacity-50', 'cursor-not-allowed');
+
+      const diceEl = document.getElementById('dice-element');
+      let rollCount = 0;
+      const rollInterval = setInterval(() => {
+        playStepSound();
+        const randFace = Math.floor(Math.random() * 6);
+        diceEl.textContent = diceFaces[randFace];
+        rollCount++;
+        if (rollCount > 10) {
+          clearInterval(rollInterval);
+          const finalRoll = Math.floor(Math.random() * 6) + 1;
+          diceEl.textContent = diceFaces[finalRoll - 1];
+          executeMoveSequence(finalRoll);
+        }
+      }, 70);
+    }
+
+    function executeMoveSequence(stepsRemaining) {
+      if (stepsRemaining <= 0) {
+        isRolling = false;
+        const btn = document.getElementById('btn-roll-dice');
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        handleTileEvent(teams[currentTeamIndex].position);
+        return;
+      }
+
+      const team = teams[currentTeamIndex];
+      team.position = (team.position + 1) % 16;
+      playStepSound();
+
+      if (team.position === 0) {
+        team.gold += 100;
+        playCorrectSound();
+      }
+
+      renderPlayerTokens();
+      renderScoreboard();
+
+      setTimeout(() => {
+        executeMoveSequence(stepsRemaining - 1);
+      }, 240);
+    }
+
+    function handleTileEvent(tilePos) {
+      const tile = boardTiles[tilePos];
+      const currentTeam = teams[currentTeamIndex];
+
+      if (tile.type === 'quiz' || tile.type === 'audio') {
+        openQuizModal(tile.type);
+      } else if (tile.type === 'chance' || tile.type === 'fate') {
+        openEventModal(tile.type);
+      } else if (tile.type === 'start') {
+        currentTeam.gold += 100;
+        playCorrectSound();
+        renderScoreboard();
+        advanceTurn();
+      } else {
+        advanceTurn();
+      }
+    }
+
+    function openQuizModal(tileType) {
+      activeQuestion = getNextUniqueQuestion(tileType);
+
+      const currentTeam = teams[currentTeamIndex];
+      document.getElementById('quiz-team-indicator').textContent = `${currentTeam.name} 作答中`;
+      document.getElementById('quiz-team-indicator').className = `text-xs font-bold ${currentTeam.textClass}`;
+      document.getElementById('quiz-question-text').textContent = activeQuestion.q;
+      document.getElementById('quiz-badge').textContent = activeQuestion.title;
+
+      const audioSection = document.getElementById('quiz-audio-section');
+      const statusText = document.getElementById('audio-status-text');
+      const playBtnIcon = document.getElementById('play-btn-icon');
+      const playBtnText = document.getElementById('play-btn-text');
+
+      if (activeQuestion.mp3Url) {
+        audioSection.classList.remove('hidden');
+        audioSection.style.display = 'flex';
+        statusText.textContent = "點擊右方按鈕播放樂段";
+        playBtnIcon.textContent = "▶️";
+        playBtnText.textContent = "播放樂段";
+        preflightResolveAudio(activeQuestion);
+      } else {
+        audioSection.classList.add('hidden');
+        audioSection.style.display = 'none';
+      }
+
+      const indexedOptions = activeQuestion.options.map((text, idx) => ({
+        text,
+        isCorrect: idx === activeQuestion.ans
+      }));
+      const shuffledOptions = shuffleArray(indexedOptions);
+
+      const optContainer = document.getElementById('quiz-options-container');
+      optContainer.innerHTML = '';
+      shuffledOptions.forEach((optObj, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = "w-full text-left p-3 rounded-xl bg-slate-700/80 hover:bg-slate-600 active:scale-95 border border-slate-600 text-xs md:text-sm font-semibold transition flex items-center gap-2 cursor-pointer";
+        btn.dataset.correct = optObj.isCorrect ? "true" : "false";
+        btn.innerHTML = `<span class="w-5 h-5 rounded-full bg-slate-900 flex items-center justify-center text-[10px] text-amber-300 font-mono font-bold flex-shrink-0">${['A','B','C','D'][idx]}</span><span>${optObj.text}</span>`;
+        btn.onclick = () => handleAnswerSelect(optObj.isCorrect, btn);
+        optContainer.appendChild(btn);
+      });
+
+      const feedbackBox = document.getElementById('quiz-feedback-box');
+      feedbackBox.className = "p-3 rounded-xl bg-slate-900/80 border text-xs leading-relaxed hidden";
+      feedbackBox.style.display = 'none';
+
+      const closeBtn = document.getElementById('btn-close-quiz');
+      closeBtn.classList.add('hidden');
+      closeBtn.style.display = 'none';
+
+      startQuizTimer(30);
+
+      const quizModal = document.getElementById('modal-quiz');
+      quizModal.classList.remove('hidden');
+      quizModal.style.display = 'flex';
+    }
+
+    function playCurrentQuestionAudio() {
+      if (activeQuestion && activeQuestion.mp3Url) {
+        playMp3Audio(activeQuestion.mp3Url, activeQuestion.id);
+      }
+    }
+
+    function startQuizTimer(seconds) {
+      clearInterval(quizCountdownTimer);
+      let timeLeft = seconds;
+      const timerEl = document.getElementById('quiz-timer');
+      timerEl.textContent = timeLeft;
+
+      quizCountdownTimer = setInterval(() => {
+        timeLeft--;
+        timerEl.textContent = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(quizCountdownTimer);
+          handleAnswerTimeout();
+        }
+      }, 1000);
+    }
+
+    function sendWrongQuestionToGColumn(questionText) {
+      if (!GOOGLE_SHEET_WEBHOOK_URL || !questionText) return;
+      const team = teams[currentTeamIndex];
+      const payload = {
+        recordType: "wrong_question",
+        time: new Date().toLocaleString('zh-TW', { hour12: false }),
+        className: currentClassName,
+        teamName: team ? team.name : "",
+        members: team ? team.membersText : "",
+        wrongQuestion: questionText
+      };
+
+      fetch(GOOGLE_SHEET_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      }).catch(() => {});
+    }
+
+    function handleAnswerSelect(isCorrect, btnElement) {
+      clearInterval(quizCountdownTimer);
+      stopCurrentAudio();
+
+      const allBtns = document.getElementById('quiz-options-container').querySelectorAll('button');
+      allBtns.forEach(b => b.disabled = true);
+
+      const feedbackBox = document.getElementById('quiz-feedback-box');
+      const resultText = document.getElementById('feedback-result');
+      const expText = document.getElementById('feedback-explanation');
+
+      feedbackBox.classList.remove('hidden');
+      feedbackBox.style.display = 'block';
+
+      if (isCorrect) {
+        playCorrectSound();
+        btnElement.classList.add('bg-emerald-600', 'border-emerald-400', 'text-white');
+        resultText.textContent = "🎉 回答正確！聲望 +100，金幣 +100";
+        resultText.className = "font-bold text-sm mb-1 text-emerald-400";
+        teams[currentTeamIndex].rp += 100;
+        teams[currentTeamIndex].gold += 100;
+      } else {
+        playWrongSound();
+        btnElement.classList.add('bg-rose-700', 'border-rose-400', 'text-white');
+        allBtns.forEach(b => {
+          if (b.dataset.correct === "true") {
+            b.classList.add('bg-emerald-700/80', 'border-emerald-400');
+          }
+        });
+        resultText.textContent = "❌ 回答錯誤！本次挑戰未獲得獎勵";
+        resultText.className = "font-bold text-sm mb-1 text-rose-400";
+        if (activeQuestion && activeQuestion.q) {
+          sendWrongQuestionToGColumn(activeQuestion.q);
+        }
+      }
+
+      expText.textContent = activeQuestion.exp;
+      const closeBtn = document.getElementById('btn-close-quiz');
+      closeBtn.classList.remove('hidden');
+      closeBtn.style.display = 'block';
+      renderScoreboard();
+    }
+
+    function handleAnswerTimeout() {
+      stopCurrentAudio();
+      playWrongSound();
+      const allBtns = document.getElementById('quiz-options-container').querySelectorAll('button');
+      allBtns.forEach(b => {
+        b.disabled = true;
+        if (b.dataset.correct === "true") {
+          b.classList.add('bg-emerald-700/80', 'border-emerald-400');
+        }
+      });
+
+      if (activeQuestion && activeQuestion.q) {
+        sendWrongQuestionToGColumn(activeQuestion.q);
+      }
+
+      const feedbackBox = document.getElementById('quiz-feedback-box');
+      const resultText = document.getElementById('feedback-result');
+      feedbackBox.classList.remove('hidden');
+      feedbackBox.style.display = 'block';
+      resultText.textContent = "⏰ 作答時間到！";
+      resultText.className = "font-bold text-sm mb-1 text-amber-400";
+      document.getElementById('feedback-explanation').textContent = activeQuestion.exp;
+
+      const closeBtn = document.getElementById('btn-close-quiz');
+      closeBtn.classList.remove('hidden');
+      closeBtn.style.display = 'block';
+    }
+
+    function closeQuizModal() {
+      clearInterval(quizCountdownTimer);
+      stopCurrentAudio();
+      const quizModal = document.getElementById('modal-quiz');
+      quizModal.classList.add('hidden');
+      quizModal.style.display = 'none';
+      advanceTurn();
+    }
+
+    function openEventModal(type) {
+      const filtered = eventsBank.filter(e => e.type === type);
+      const ev = filtered[Math.floor(Math.random() * filtered.length)];
+      const currentTeam = teams[currentTeamIndex];
+
+      document.getElementById('event-icon').textContent = ev.type === 'chance' ? '📰' : '📜';
+      document.getElementById('event-title').textContent = ev.title;
+      document.getElementById('event-desc').textContent = ev.desc;
+
+      let rewardString = "";
+      if (ev.rp !== 0) rewardString += `${ev.rp > 0 ? '+' : ''}${ev.rp} 聲望 `;
+      if (ev.gold !== 0) rewardString += `${ev.gold > 0 ? '+' : ''}${ev.gold} 金幣`;
+      document.getElementById('event-reward').textContent = rewardString;
+
+      currentTeam.rp = Math.max(0, currentTeam.rp + ev.rp);
+      currentTeam.gold = Math.max(0, currentTeam.gold + ev.gold);
+
+      if (ev.rp > 0 || ev.gold > 0) playCorrectSound();
+      else playWrongSound();
+
+      renderScoreboard();
+      const eventModal = document.getElementById('modal-event');
+      eventModal.classList.remove('hidden');
+      eventModal.style.display = 'flex';
+    }
+
+    function closeEventModal() {
+      const eventModal = document.getElementById('modal-event');
+      eventModal.classList.add('hidden');
+      eventModal.style.display = 'none';
+      advanceTurn();
+    }
+
+    function advanceTurn() {
+      currentTeamIndex++;
+      if (currentTeamIndex >= teams.length) {
+        currentTeamIndex = 0;
+        currentRound++;
+      }
+
+      if (currentRound > maxRounds) {
+        triggerVictoryScreen();
+        return;
+      }
+
+      updateTurnIndicator();
+      renderPlayerTokens();
+      renderScoreboard();
+    }
+
+    async function sendGameResultsToSheet(sortedTeams) {
+      const statusEl = document.getElementById('sheet-sync-status');
+      const nowStr = new Date().toLocaleString('zh-TW', { hour12: false });
+      const records = sortedTeams.map(t => ({
+        time: nowStr,
+        className: currentClassName,
+        teamName: t.name,
+        members: t.membersText,
+        coins: t.gold
+      }));
+
+      try {
+        await Promise.all(records.map(row =>
+          fetch(GOOGLE_SHEET_WEBHOOK_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(row)
+          })
+        ));
+        if (statusEl) {
+          statusEl.textContent = `✅ 已成功回傳 ${records.length} 個樂器小隊紀錄至 Google 試算表（${currentClassName} 班）`;
+          statusEl.className = "text-xs font-bold text-emerald-400 bg-emerald-950/50 border border-emerald-700/60 rounded-xl py-2 px-3 mb-4";
+        }
+      } catch (err) {
+        if (statusEl) {
+          statusEl.textContent = "⚠️ 試算表回傳發生網路異常，請確認 GAS 部署權限與網址。";
+          statusEl.className = "text-xs font-bold text-rose-400 bg-rose-950/50 border border-rose-700/60 rounded-xl py-2 px-3 mb-4";
+        }
+      }
+    }
+
+    function triggerVictoryScreen() {
+      stopCurrentAudio();
+      playCorrectSound();
+
+      const sortedTeams = [...teams].sort((a, b) => (b.rp * 2 + b.gold) - (a.rp * 2 + a.gold));
+      const listEl = document.getElementById('podium-list');
+      listEl.innerHTML = '';
+
+      const medals = ['🥇', '🥈', '🥉', '4th', '5th', '6th'];
+      sortedTeams.forEach((t, idx) => {
+        const item = document.createElement('div');
+        item.className = `p-3 rounded-xl border flex items-center justify-between ${idx === 0 ? 'bg-amber-500/20 border-amber-400 font-bold' : 'bg-slate-900/60 border-slate-700'}`;
+        item.innerHTML = `
+          <div class="flex flex-col text-left">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">${medals[idx]}</span>
+              <span class="text-sm ${t.textClass}">${t.icon} ${t.name}</span>
+            </div>
+            <span class="text-[11px] text-slate-400 mt-0.5 pl-7">${t.membersText}</span>
+          </div>
+          <div class="text-xs font-mono text-right">
+            <span class="text-amber-300 font-bold">${t.rp} RP</span> ·
+            <span class="text-yellow-400">${t.gold} G</span>
+            <div class="text-[10px] text-slate-400">綜合總分: ${t.rp * 2 + t.gold}</div>
+          </div>
+        `;
+        listEl.appendChild(item);
+      });
+
+      const vicModal = document.getElementById('modal-victory');
+      vicModal.classList.remove('hidden');
+      vicModal.style.display = 'flex';
+
+      sendGameResultsToSheet(sortedTeams);
+    }
+
+    function openResetModal() {
+      const resetModal = document.getElementById('modal-reset-confirm');
+      resetModal.classList.remove('hidden');
+      resetModal.style.display = 'flex';
+    }
+
+    function closeResetModal() {
+      const resetModal = document.getElementById('modal-reset-confirm');
+      resetModal.classList.add('hidden');
+      resetModal.style.display = 'none';
+    }
+
+    function executeResetGame() {
+      stopCurrentAudio();
+      closeResetModal();
+      const vicModal = document.getElementById('modal-victory');
+      vicModal.classList.add('hidden');
+      vicModal.style.display = 'none';
+
+      renderRosterForms(selectedTeamCount);
+      const setupModal = document.getElementById('modal-setup');
+      setupModal.classList.remove('hidden');
+      setupModal.style.display = 'flex';
+    }
+
+    renderRosterForms(selectedTeamCount);
+  </script>
+</body>
+</html>
